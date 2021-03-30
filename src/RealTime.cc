@@ -121,7 +121,7 @@ void RealTime::executeUntil(EmuTime::param time)
 	setSyncPoint(time + getEmuDuration(SYNC_INTERVAL));
 }
 
-int RealTime::signalEvent(const std::shared_ptr<const Event>& event)
+int RealTime::signalEvent(const std::shared_ptr<const Event>& event) noexcept
 {
 	if (!motherBoard.isActive() || !enabled) {
 		// these are global events, only the active machine should
@@ -129,7 +129,7 @@ int RealTime::signalEvent(const std::shared_ptr<const Event>& event)
 		return 0;
 	}
 	if (event->getType() == OPENMSX_FINISH_FRAME_EVENT) {
-		auto& ffe = checked_cast<const FinishFrameEvent&>(*event);
+		const auto& ffe = checked_cast<const FinishFrameEvent&>(*event);
 		if (!ffe.needRender()) {
 			// sync but don't sleep
 			sync(getCurrentTime(), false);
@@ -141,17 +141,17 @@ int RealTime::signalEvent(const std::shared_ptr<const Event>& event)
 	return 0;
 }
 
-void RealTime::update(const Setting& /*setting*/)
+void RealTime::update(const Setting& /*setting*/) noexcept
 {
 	resync();
 }
 
-void RealTime::update(const SpeedManager& /*speedManager*/)
+void RealTime::update(const SpeedManager& /*speedManager*/) noexcept
 {
 	resync();
 }
 
-void RealTime::update(const ThrottleManager& /*throttleManager*/)
+void RealTime::update(const ThrottleManager& /*throttleManager*/) noexcept
 {
 	resync();
 }

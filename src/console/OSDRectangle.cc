@@ -71,10 +71,13 @@ void OSDRectangle::setProperty(
 			invalidateRecursive();
 		}
 	} else if (propName == "-image") {
-		string val(value.getString());
+		std::string_view val = value.getString();
 		if (imageName != val) {
-			if (!val.empty() && !FileOperations::isRegularFile(val)) {
-				throw CommandException("Not a valid image file: ", val);
+			if (!val.empty()) {
+				if (string file = systemFileContext().resolve(val);
+				    !FileOperations::isRegularFile(file)) {
+					throw CommandException("Not a valid image file: ", val);
+				}
 			}
 			imageName = val;
 			invalidateRecursive();
@@ -153,7 +156,7 @@ uint8_t OSDRectangle::getFadedAlpha() const
 	return uint8_t(255 * getRecursiveFadeValue());
 }
 
-template <typename IMAGE> std::unique_ptr<BaseImage> OSDRectangle::create(
+template<typename IMAGE> std::unique_ptr<BaseImage> OSDRectangle::create(
 	OutputSurface& output)
 {
 	if (imageName.empty()) {

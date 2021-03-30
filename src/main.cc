@@ -45,12 +45,22 @@ int setenv(const char *name, const char *value, int overwrite);
 int setenv(const char *name, const char *value, int overwrite)
 {
 	if (!overwrite) {
-		char* oldvalue = getenv(name);
-		if (oldvalue) {
+		if (char* oldvalue = getenv(name)) {
 			return 0;
 		}
 	}
 	return _putenv_s(name, value);
+}
+#endif
+
+#ifdef _WIN32
+// enable console output on Windows
+void EnableConsoleOutput()
+{
+    if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+        freopen("CONOUT$", "w", stdout);
+        freopen("CONOUT$", "w", stderr);
+    }
 }
 #endif
 
@@ -97,6 +107,10 @@ static int main(int argc, char **argv)
 	std::string msg = Date::toString(time(nullptr)) + ": starting openMSX";
 	std::cout << msg << '\n';
 	std::cerr << msg << '\n';
+#endif
+
+#ifdef _WIN32
+    EnableConsoleOutput();
 #endif
 
 	try {

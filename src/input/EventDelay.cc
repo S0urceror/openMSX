@@ -75,7 +75,7 @@ EventDelay::~EventDelay()
 		OPENMSX_JOY_BUTTON_UP_EVENT,   *this);
 }
 
-int EventDelay::signalEvent(const EventPtr& event)
+int EventDelay::signalEvent(const EventPtr& event) noexcept
 {
 	toBeScheduledEvents.push_back(event);
 	if (delaySetting.getDouble() == 0.0) {
@@ -153,7 +153,7 @@ void EventDelay::sync(EmuTime::param curEmu)
 		}
 #endif
 		scheduledEvents.push_back(e);
-		auto timedEvent = checked_cast<const TimedEvent*>(e.get());
+		const auto* timedEvent = checked_cast<const TimedEvent*>(e.get());
 		auto eventRealTime = timedEvent->getRealTime();
 		assert(eventRealTime <= curRealTime);
 		auto offset = curRealTime - eventRealTime;

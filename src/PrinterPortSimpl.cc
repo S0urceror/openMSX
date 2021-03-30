@@ -7,6 +7,9 @@
 
 namespace openmsx {
 
+constexpr static_string_view DESCRIPTION =
+	"Play samples via your printer port.";
+
 PrinterPortSimpl::PrinterPortSimpl(const HardwareConfig& hwConf_)
 	: hwConf(hwConf_)
 {
@@ -39,7 +42,7 @@ static XMLElement createXML()
 void PrinterPortSimpl::createDAC()
 {
 	static XMLElement xml = createXML();
-	dac = std::make_unique<DACSound8U>("simpl", getDescription(),
+	dac = std::make_unique<DACSound8U>("simpl", DESCRIPTION,
 	                                   DeviceConfig(hwConf, xml));
 }
 
@@ -53,22 +56,21 @@ void PrinterPortSimpl::unplugHelper(EmuTime::param /*time*/)
 	dac.reset();
 }
 
-const std::string& PrinterPortSimpl::getName() const
+std::string_view PrinterPortSimpl::getName() const
 {
-	static const std::string name("simpl");
-	return name;
+	return "simpl";
 }
 
 std::string_view PrinterPortSimpl::getDescription() const
 {
-	return "Play samples via your printer port.";
+	return DESCRIPTION;
 }
 
 template<typename Archive>
 void PrinterPortSimpl::serialize(Archive& ar, unsigned /*version*/)
 {
 	if (isPluggedIn()) {
-		if (ar.isLoader()) {
+		if constexpr (Archive::IS_LOADER) {
 			createDAC();
 		}
 		ar.serialize("dac", *dac);

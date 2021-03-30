@@ -39,8 +39,8 @@ public:
 	 * SDL_JoystickNumButtons() and SDL_JoystickGetButton(). Except on
 	 * Android, see comments in .cc for more details.
 	 */
-	static int joystickNumButtons(SDL_Joystick* joystick);
-	static bool joystickGetButton(SDL_Joystick* joystick, int button);
+	[[nodiscard]] static int joystickNumButtons(SDL_Joystick* joystick);
+	[[nodiscard]] static bool joystickGetButton(SDL_Joystick* joystick, int button);
 
 	void poll();
 
@@ -53,7 +53,7 @@ private:
 	void setGrabInput(bool grab);
 
 	// EventListener
-	int signalEvent(const std::shared_ptr<const Event>& event) override;
+	int signalEvent(const std::shared_ptr<const Event>& event) noexcept override;
 
 	EventDistributor& eventDistributor;
 	GlobalSettings& globalSettings;
@@ -62,7 +62,7 @@ private:
 	struct EscapeGrabCmd final : Command {
 		explicit EscapeGrabCmd(CommandController& commandController);
 		void execute(span<const TclObject> tokens, TclObject& result) override;
-		std::string help(const std::vector<std::string>& tokens) const override;
+		[[nodiscard]] std::string help(const std::vector<std::string>& tokens) const override;
 	} escapeGrabCmd;
 
 	enum EscapeGrabState {

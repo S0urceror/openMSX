@@ -36,9 +36,9 @@ public:
 	ArkanoidState(EmuTime::param time_, int delta_, bool press_, bool release_)
 		: StateChange(time_)
 		, delta(delta_), press(press_), release(release_) {}
-	int  getDelta()   const { return delta; }
-	bool getPress()   const { return press; }
-	bool getRelease() const { return release; }
+	[[nodiscard]] int  getDelta()   const { return delta; }
+	[[nodiscard]] bool getPress()   const { return press; }
+	[[nodiscard]] bool getRelease() const { return release; }
 
 	template<typename Archive> void serialize(Archive& ar, unsigned /*version*/)
 	{
@@ -73,10 +73,9 @@ ArkanoidPad::~ArkanoidPad()
 
 
 // Pluggable
-const string& ArkanoidPad::getName() const
+std::string_view ArkanoidPad::getName() const
 {
-	static const string name("arkanoidpad");
-	return name;
+	return "arkanoidpad";
 }
 
 std::string_view ArkanoidPad::getDescription() const
@@ -119,11 +118,11 @@ void ArkanoidPad::write(byte value, EmuTime::param /*time*/)
 
 // MSXEventListener
 void ArkanoidPad::signalMSXEvent(const shared_ptr<const Event>& event,
-                                 EmuTime::param time)
+                                 EmuTime::param time) noexcept
 {
 	switch (event->getType()) {
 	case OPENMSX_MOUSE_MOTION_EVENT: {
-		auto& mEvent = checked_cast<const MouseMotionEvent&>(*event);
+		const auto& mEvent = checked_cast<const MouseMotionEvent&>(*event);
 		int newPos = std::min(POS_MAX,
 		                      std::max(POS_MIN,
 		                               dialpos + mEvent.getX() / SCALE));
@@ -160,7 +159,7 @@ void ArkanoidPad::signalMSXEvent(const shared_ptr<const Event>& event,
 // StateChangeListener
 void ArkanoidPad::signalStateChange(const shared_ptr<StateChange>& event)
 {
-	auto as = dynamic_cast<ArkanoidState*>(event.get());
+	const auto* as = dynamic_cast<const ArkanoidState*>(event.get());
 	if (!as) return;
 
 	dialpos += as->getDelta();
@@ -168,7 +167,7 @@ void ArkanoidPad::signalStateChange(const shared_ptr<StateChange>& event)
 	if (as->getRelease()) buttonStatus |=  2;
 }
 
-void ArkanoidPad::stopReplay(EmuTime::param time)
+void ArkanoidPad::stopReplay(EmuTime::param time) noexcept
 {
 	// TODO Get actual mouse button(s) state. Is it worth the trouble?
 	int delta = POS_CENTER - dialpos;
@@ -193,8 +192,10 @@ void ArkanoidPad::serialize(Archive& ar, unsigned version)
 		ar.serialize("dialpos",      dialpos,
 		             "buttonStatus", buttonStatus);
 	}
-	if (ar.isLoader() && isPluggedIn()) {
-		plugHelper(*getConnector(), EmuTime::dummy());
+	if constexpr (Archive::IS_LOADER) {
+		if (isPluggedIn()) {
+			plugHelper(*getConnector(), EmuTime::dummy());
+		}
 	}
 }
 INSTANTIATE_SERIALIZE_METHODS(ArkanoidPad);

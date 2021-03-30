@@ -18,8 +18,9 @@ MSXAudio::MSXAudio(const DeviceConfig& config)
 	        getCurrentTime(), *this)
 	, dacValue(0x80), dacEnabled(false)
 {
-	string type(StringOp::toLower(config.getChildData("type", "philips")));
-	if (type == "philips") {
+	auto type = config.getChildData("type", "philips");
+	StringOp::casecmp cmp;
+	if (cmp(type, "philips")) {
 		dac = std::make_unique<DACSound8U>(
 			getName() + " 8-bit DAC", "MSX-AUDIO 8-bit DAC",
 			config);
@@ -56,15 +57,13 @@ void MSXAudio::reset(EmuTime::param time)
 
 byte MSXAudio::readIO(word port, EmuTime::param time)
 {
-	byte result;
 	if ((port & 0xE8) == 0x08) {
 		// read DAC
-		result = 0xFF;
+		return 0xFF;
 	} else {
-		result = (port & 1) ? y8950.readReg(registerLatch, time)
-		                    : y8950.readStatus(time);
+		return (port & 1) ? y8950.readReg(registerLatch, time)
+		                  : y8950.readStatus(time);
 	}
-	return result;
 }
 
 byte MSXAudio::peekIO(word port, EmuTime::param time) const
@@ -134,7 +133,7 @@ void MSXAudio::serialize(Archive& ar, unsigned /*version*/)
 	             "dacValue",      dacValue,
 	             "dacEnabled",    dacEnabled);
 
-	if (ar.isLoader()) {
+	if constexpr (Archive::IS_LOADER) {
 		// restore dac status
 		if (dacEnabled) {
 			assert(dac);

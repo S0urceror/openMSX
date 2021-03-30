@@ -102,12 +102,12 @@ void Video9000::recalcVideoSource()
 		superimpose && (videoSourceSetting.getSource() == getVideoSource()));
 }
 
-void Video9000::preVideoSystemChange()
+void Video9000::preVideoSystemChange() noexcept
 {
 	activeLayer = nullptr; // will be recalculated on next paint()
 }
 
-void Video9000::postVideoSystemChange()
+void Video9000::postVideoSystemChange() noexcept
 {
 	// We can't yet re-initialize 'activeLayer' here because the
 	// new v99x8/v9990 layer may not be created yet.
@@ -132,12 +132,12 @@ void Video9000::takeRawScreenShot(unsigned height, const std::string& filename)
 	layer->takeRawScreenShot(height, filename);
 }
 
-int Video9000::signalEvent(const std::shared_ptr<const Event>& event)
+int Video9000::signalEvent(const std::shared_ptr<const Event>& event) noexcept
 {
 	int video9000id = getVideoSource();
 
 	assert(event->getType() == OPENMSX_FINISH_FRAME_EVENT);
-	auto& ffe = checked_cast<const FinishFrameEvent&>(*event);
+	const auto& ffe = checked_cast<const FinishFrameEvent&>(*event);
 	if (ffe.isSkipped()) return 0;
 	if (videoSourceSetting.getSource() != video9000id) return 0;
 
@@ -158,7 +158,7 @@ int Video9000::signalEvent(const std::shared_ptr<const Event>& event)
 	return 0;
 }
 
-void Video9000::update(const Setting& setting)
+void Video9000::update(const Setting& setting) noexcept
 {
 	VideoLayer::update(setting);
 	if (&setting == &videoSourceSetting) {
@@ -171,7 +171,7 @@ void Video9000::serialize(Archive& ar, unsigned /*version*/)
 {
 	ar.template serializeBase<MSXDevice>(*this);
 	ar.serialize("value", value);
-	if (ar.isLoader()) {
+	if constexpr (Archive::IS_LOADER) {
 		recalc();
 	}
 }

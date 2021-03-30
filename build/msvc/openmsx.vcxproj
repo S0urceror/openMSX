@@ -134,7 +134,7 @@
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <DelayLoadDLLs>shell32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <LinkTimeCodeGeneration>
       </LinkTimeCodeGeneration>
       <TargetMachine>MachineX86</TargetMachine>
@@ -166,7 +166,7 @@
       <AdditionalLibraryDirectories>$(DXSDK_DIR)\Lib\$(Platform);$(ThirdPartyOutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DelayLoadDLLs>shell32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
   </ItemDefinitionGroup>
@@ -203,7 +203,7 @@
       <AdditionalLibraryDirectories>$(DXSDK_DIR)\Lib\$(PlatformShortName);$(ThirdPartyOutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DelayLoadDLLs>shell32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <TargetMachine>MachineX86</TargetMachine>
@@ -244,7 +244,7 @@
       <AdditionalLibraryDirectories>$(DXSDK_DIR)\Lib\$(Platform);$(ThirdPartyOutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DelayLoadDLLs>shell32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <TargetMachine>MachineX64</TargetMachine>
@@ -274,7 +274,7 @@
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <DelayLoadDLLs>shell32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <LinkTimeCodeGeneration>
       </LinkTimeCodeGeneration>
       <TargetMachine>MachineX86</TargetMachine>
@@ -307,7 +307,7 @@
       <AdditionalLibraryDirectories>$(DXSDK_DIR)\Lib\$(Platform);$(ThirdPartyOutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DelayLoadDLLs>shell32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
   </ItemDefinitionGroup>
@@ -433,6 +433,7 @@
     <ClCompile Include="$(OpenMSXSrcDir)\file\Filename.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\file\FileOperations.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\file\FilePool.cc" />
+    <ClCompile Include="$(OpenMSXSrcDir)\file\FilePoolCore.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\file\GZFileAdapter.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\file\LocalFile.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\file\LocalFileReference.cc" />
@@ -552,6 +553,7 @@
     <ClCompile Include="$(OpenMSXSrcDir)\memory\RomSuperLodeRunner.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\RomSynthesizer.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\RomZemina126in1.cc" />
+    <ClCompile Include="$(OpenMSXSrcDir)\memory\RomZemina25in1.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\RomZemina80in1.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\RomZemina90in1.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\SRAM.cc" />
@@ -692,7 +694,6 @@
     <ClCompile Include="$(OpenMSXSrcDir)\video\PNG.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\video\PostProcessor.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\video\RawFrame.cc" />
-    <ClCompile Include="$(OpenMSXSrcDir)\video\Renderer.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\video\RendererFactory.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\video\RenderSettings.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\video\scalers\RGBTriplet3xScaler.cc" />
@@ -809,6 +810,7 @@
     <ClCompile Include="$(OpenMSXSrcDir)\MSXS1985.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\MSXS1990.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\MSXSwitchedDevice.cc" />
+    <ClCompile Include="$(OpenMSXSrcDir)\MSXToshibaTcx200x.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\MSXTurboRPause.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\PasswordCart.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\Pluggable.cc" />
@@ -979,6 +981,7 @@
     <None Include="$(OpenMSXSrcDir)\file\Filename.hh" />
     <None Include="$(OpenMSXSrcDir)\file\FileOperations.hh" />
     <None Include="$(OpenMSXSrcDir)\file\FilePool.hh" />
+    <None Include="$(OpenMSXSrcDir)\file\FilePoolCore.hh" />
     <None Include="$(OpenMSXSrcDir)\file\GZFileAdapter.hh" />
     <None Include="$(OpenMSXSrcDir)\file\LocalFile.hh" />
     <None Include="$(OpenMSXSrcDir)\file\LocalFileReference.hh" />
@@ -1104,6 +1107,7 @@
     <None Include="$(OpenMSXSrcDir)\memory\RomSynthesizer.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\RomTypes.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\RomZemina126in1.hh" />
+    <None Include="$(OpenMSXSrcDir)\memory\RomZemina25in1.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\RomZemina80in1.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\RomZemina90in1.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\SRAM.hh" />
@@ -1458,6 +1462,7 @@
     <None Include="$(OpenMSXSrcDir)\MSXS1985.hh" />
     <None Include="$(OpenMSXSrcDir)\MSXS1990.hh" />
     <None Include="$(OpenMSXSrcDir)\MSXSwitchedDevice.hh" />
+    <None Include="$(OpenMSXSrcDir)\MSXToshibaTcx200x.hh" />
     <None Include="$(OpenMSXSrcDir)\MSXTurboRPause.hh" />
     <CustomBuild Include="$(OpenMSXSrcDir)\openmsx.hh">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Generating config headers...</Message>

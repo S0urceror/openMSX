@@ -33,9 +33,12 @@ class RomDebuggable final : public Debuggable
 public:
 	RomDebuggable(Debugger& debugger, Rom& rom);
 	~RomDebuggable();
-	unsigned getSize() const override;
-	const std::string& getDescription() const override;
-	byte read(unsigned address) override;
+	RomDebuggable(const RomDebuggable&) = delete;
+	RomDebuggable& operator=(const RomDebuggable&) = delete;
+
+	[[nodiscard]] unsigned getSize() const override;
+	[[nodiscard]] std::string_view getDescription() const override;
+	[[nodiscard]] byte read(unsigned address) override;
 	void write(unsigned address, byte value) override;
 	void moved(Rom& r);
 private:
@@ -44,9 +47,9 @@ private:
 };
 
 
-Rom::Rom(string name_, string description_,
+Rom::Rom(string name_, static_string_view description_,
          const DeviceConfig& config, const string& id /*= {}*/)
-	: name(std::move(name_)), description(std::move(description_))
+	: name(std::move(name_)), description(description_)
 {
 	// Try all <rom> tags with matching "id" attribute.
 	string errors;
@@ -89,8 +92,8 @@ void Rom::init(MSXMotherBoard& motherBoard, const XMLElement& config,
 
 	auto sums      = config.getChildren("sha1");
 	auto filenames = config.getChildren("filename");
-	auto* resolvedFilenameElem = config.findChild("resolvedFilename");
-	auto* resolvedSha1Elem     = config.findChild("resolvedSha1");
+	const auto* resolvedFilenameElem = config.findChild("resolvedFilename");
+	const auto* resolvedSha1Elem     = config.findChild("resolvedSha1");
 	if (config.findChild("firstblock")) {
 		// part of the TurboR main ROM
 		//  If there is a firstblock/lastblock tag, (only) use these to
@@ -123,7 +126,7 @@ void Rom::init(MSXMotherBoard& motherBoard, const XMLElement& config,
 		}
 		// .. then try the actual sha1sum ..
 		auto fileType = context.isUserContext()
-			? FilePool::ROM : FilePool::SYSTEM_ROM;
+			? FileType::ROM : FileType::SYSTEM_ROM;
 		if (!file.is_open() && resolvedSha1Elem) {
 			Sha1Sum sha1(resolvedSha1Elem->getData());
 			file = filepool.getFile(fileType, sha1);
@@ -136,8 +139,8 @@ void Rom::init(MSXMotherBoard& motherBoard, const XMLElement& config,
 		if (!file.is_open()) {
 			for (auto& f : filenames) {
 				try {
-					Filename filename(f->getData(), context);
-					file = File(filename);
+					file = File(Filename(f->getData(), context));
+					break;
 				} catch (FileException&) {
 					// ignore
 				}
@@ -222,9 +225,9 @@ void Rom::init(MSXMotherBoard& motherBoard, const XMLElement& config,
 	}
 
 	if (size != 0) {
-		if (auto* patchesElem = config.findChild("patches")) {
+		if (const auto* patchesElem = config.findChild("patches")) {
 			// calculate before content is altered
-			getOriginalSHA1();
+			(void)getOriginalSHA1(); // fills cache
 
 			unique_ptr<PatchInterface> patch =
 				std::make_unique<EmptyPatch>(rom, size);
@@ -245,7 +248,7 @@ void Rom::init(MSXMotherBoard& motherBoard, const XMLElement& config,
 			}
 
 			// calculated because it's different from original
-			actualSha1 = SHA1::calc(rom, size);
+			actualSha1 = SHA1::calc({rom, size});
 
 			// Content altered by external patch file -> check.
 			checkResolvedSha1 = true;
@@ -287,7 +290,7 @@ void Rom::init(MSXMotherBoard& motherBoard, const XMLElement& config,
 		const auto& actualSha1Elem = mutableConfig.getCreateChild(
 			"resolvedSha1", patchedSha1Str);
 		if (actualSha1Elem.getData() != patchedSha1Str) {
-			string tmp = file.is_open() ? file.getURL() : name;
+			std::string_view tmp = file.is_open() ? file.getURL() : name;
 			// can only happen in case of loadstate
 			motherBoard.getMSXCliComm().printWarning(
 				"The content of the rom ", tmp, " has "
@@ -299,7 +302,7 @@ void Rom::init(MSXMotherBoard& motherBoard, const XMLElement& config,
 
 	// This must come after we store the 'resolvedSha1', because on
 	// loadstate we use that tag to search the complete rom in a filepool.
-	if (auto* windowElem = config.findChild("window")) {
+	if (const auto* windowElem = config.findChild("window")) {
 		unsigned windowBase = windowElem->getAttributeAsInt("base", 0);
 		unsigned windowSize = windowElem->getAttributeAsInt("size", size);
 		if ((windowBase + windowSize) > size) {
@@ -324,7 +327,7 @@ bool Rom::checkSHA1(const XMLElement& config) const
 	if (sums.empty()) {
 		return true;
 	}
-	auto& sha1sum = getOriginalSHA1();
+	const auto& sha1sum = getOriginalSHA1();
 	return ranges::any_of(sums, [&](auto& s) {
 		return Sha1Sum(s->getData()) == sha1sum;
 	});
@@ -346,15 +349,15 @@ Rom::Rom(Rom&& r) noexcept
 
 Rom::~Rom() = default;
 
-string Rom::getFilename() const
+std::string_view Rom::getFilename() const
 {
-	return file.is_open() ? file.getURL() : string{};
+	return file.is_open() ? file.getURL() : std::string_view();
 }
 
 const Sha1Sum& Rom::getOriginalSHA1() const
 {
 	if (originalSha1.empty()) {
-		originalSha1 = SHA1::calc(rom, size);
+		originalSha1 = SHA1::calc({rom, size});
 	}
 	return originalSha1;
 }
@@ -399,7 +402,7 @@ unsigned RomDebuggable::getSize() const
 	return rom->getSize();
 }
 
-const string& RomDebuggable::getDescription() const
+std::string_view RomDebuggable::getDescription() const
 {
 	return rom->getDescription();
 }

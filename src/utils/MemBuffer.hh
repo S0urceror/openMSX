@@ -10,15 +10,6 @@
 
 namespace openmsx {
 
-// When SSE2 is enabled (some) buffers need to be 16-bytes aligned. If not
-// then don't enforce stricter than default alignment.
-#ifdef __SSE2__
-constexpr size_t SSE2_ALIGNMENT = 16;
-#else
-constexpr size_t SSE2_ALIGNMENT = 0;
-#endif
-
-
 /** This class manages the lifetime of a block of memory.
   *
   * Its two main use cases are:
@@ -164,7 +155,7 @@ private:
 	[[nodiscard]] void* my_malloc(size_t bytes)
 	{
 		void* result;
-		if (SIMPLE_MALLOC) {
+		if constexpr (SIMPLE_MALLOC) {
 			result = malloc(bytes);
 			if (!result && bytes) throw std::bad_alloc();
 		} else {
@@ -176,7 +167,7 @@ private:
 
 	void my_free(void* p)
 	{
-		if (SIMPLE_MALLOC) {
+		if constexpr (SIMPLE_MALLOC) {
 			free(p);
 		} else {
 			MemoryOps::freeAligned(p);
@@ -186,7 +177,7 @@ private:
 	[[nodiscard]] void* my_realloc(void* old, size_t bytes)
 	{
 		void* result;
-		if (SIMPLE_MALLOC) {
+		if constexpr (SIMPLE_MALLOC) {
 			result = realloc(old, bytes);
 			if (!result && bytes) throw std::bad_alloc();
 		} else {

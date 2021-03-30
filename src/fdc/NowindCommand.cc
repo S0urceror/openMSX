@@ -9,9 +9,11 @@
 #include "FileOperations.hh"
 #include "CommandException.hh"
 #include "TclObject.hh"
+#include "enumerate.hh"
 #include "one_of.hh"
 #include "span.hh"
 #include "unreachable.hh"
+#include "xrange.hh"
 #include <cassert>
 #include <memory>
 
@@ -39,18 +41,18 @@ unique_ptr<DiskChanger> NowindCommand::createDiskChanger(
 			false, true);
 }
 
-unsigned NowindCommand::searchRomdisk(const NowindHost::Drives& drives) const
+[[nodiscard]] static unsigned searchRomdisk(const NowindHost::Drives& drives)
 {
-	for (size_t i = 0; i < drives.size(); ++i) {
-		if (drives[i]->isRomdisk()) {
-			return i;
+	for (auto [i, drv] : enumerate(drives)) {
+		if (drv->isRomdisk()) {
+			return unsigned(i);
 		}
 	}
 	return 255;
 }
 
 void NowindCommand::processHdimage(
-	string_view hdimage, NowindHost::Drives& drives) const
+	const string& hdImage, NowindHost::Drives& drives) const
 {
 	MSXMotherBoard& motherboard = interface.getMotherBoard();
 
@@ -60,20 +62,18 @@ void NowindCommand::processHdimage(
 	// disambiguity we will always interpret the string as <filename> if
 	// it is an existing filename.
 	vector<unsigned> partitions;
-	auto pos = hdimage.find_last_of(':');
-	if ((pos != string::npos) && !FileOperations::exists(hdimage)) {
+	if (auto pos = hdImage.find_last_of(':');
+	    (pos != string::npos) && !FileOperations::exists(hdImage)) {
 		partitions = StringOp::parseRange(
-			hdimage.substr(pos + 1), 1, 31);
+			hdImage.substr(pos + 1), 1, 31);
 	}
 
-	auto wholeDisk = std::make_shared<DSKDiskImage>(Filename(string(hdimage)));
+	auto wholeDisk = std::make_shared<DSKDiskImage>(Filename(hdImage));
 	bool failOnError = true;
 	if (partitions.empty()) {
 		// insert all partitions
 		failOnError = false;
-		for (unsigned i = 1; i <= 31; ++i) {
-			partitions.push_back(i);
-		}
+		partitions = to_vector(xrange(1u, 32u));
 	}
 
 	for (auto& p : partitions) {
@@ -105,12 +105,12 @@ void NowindCommand::execute(span<const TclObject> tokens, TclObject& result)
 		// no arguments, show general status
 		assert(!drives.empty());
 		string r;
-		for (size_t i = 0; i < drives.size(); ++i) {
+		for (auto [i, drv] : enumerate(drives)) {
 			strAppend(r, "nowind", i + 1, ": ");
-			if (dynamic_cast<NowindRomDisk*>(drives[i].get())) {
+			if (dynamic_cast<NowindRomDisk*>(drv.get())) {
 				strAppend(r, "romdisk\n");
-			} else if (auto changer = dynamic_cast<DiskChanger*>(
-						drives[i].get())) {
+			} else if (const auto* changer = dynamic_cast<const DiskChanger*>(
+						drv.get())) {
 				string filename = changer->getDiskName().getOriginal();
 				strAppend(r, (filename.empty() ? "--empty--" : filename),
 				          '\n');
@@ -182,9 +182,10 @@ void NowindCommand::execute(span<const TclObject> tokens, TclObject& result)
 				error = strCat("Missing argument for option: ", arg);
 			} else {
 				try {
-					string_view hdimage = args.front().getString();
+					auto hdImage = FileOperations::expandTilde(
+						string(args.front().getString()));
 					args = args.subspan(1);
-					processHdimage(hdimage, tmpDrives);
+					processHdimage(hdImage, tmpDrives);
 					changeDrives = true;
 				} catch (MSXException& e) {
 					error = std::move(e).getMessage();
@@ -203,7 +204,7 @@ void NowindCommand::execute(span<const TclObject> tokens, TclObject& result)
 				interface.getMotherBoard());
 			changeDrives = true;
 			if (!image.empty()) {
-				if (drive->insertDisk(image)) {
+				if (drive->insertDisk(FileOperations::expandTilde(string(image)))) {
 					error = strCat("Invalid disk image: ", image);
 				}
 			}
@@ -244,7 +245,7 @@ void NowindCommand::execute(span<const TclObject> tokens, TclObject& result)
 	auto prevSize = tmpDrives.size();
 	tmpDrives.clear();
 	for (auto& d : drives) {
-		if (auto disk = dynamic_cast<DiskChanger*>(d.get())) {
+		if (auto* disk = dynamic_cast<DiskChanger*>(d.get())) {
 			disk->createCommand();
 		}
 	}
@@ -330,14 +331,15 @@ string NowindCommand::help(const vector<string>& /*tokens*/) const
 
 void NowindCommand::tabCompletion(vector<string>& tokens) const
 {
-	static constexpr const char* const extra[] = {
-		"-c", "--ctrl",
-		"-C", "--no-ctrl",
-		"-a", "--allow",
-		"-A", "--no-allow",
-		"-j", "--romdisk",
-		"-i", "--image",
-		"-m", "--hdimage",
+	using namespace std::literals;
+	static constexpr std::array extra = {
+		"-c"sv, "--ctrl"sv,
+		"-C"sv, "--no-ctrl"sv,
+		"-a"sv, "--allow"sv,
+		"-A"sv, "--no-allow"sv,
+		"-j"sv, "--romdisk"sv,
+		"-i"sv, "--image"sv,
+		"-m"sv, "--hdimage"sv,
 	};
 	completeFileName(tokens, userFileContext(), extra);
 }

@@ -72,11 +72,11 @@ class LibPNG(DownloadablePackage):
 	downloadURL = 'http://downloads.sourceforge.net/libpng'
 	niceName = 'libpng'
 	sourceName = 'libpng'
-	version = '1.6.36'
-	fileLength = 1496022
+	version = '1.6.37'
+	fileLength = 1495748
 	checksums = {
 		'sha256':
-			'ca13c548bde5fb6ff7117cc0bdab38808acb699c0eccb613f0e4697826e1fd7d',
+			'daeb2620d829575513e35fecc83f0d3791a620b9b93d800b763542ece9390fb4',
 		}
 
 	@classmethod
@@ -139,11 +139,11 @@ class TCL(DownloadablePackage):
 	downloadURL = 'http://downloads.sourceforge.net/tcl'
 	niceName = 'Tcl'
 	sourceName = 'tcl'
-	version = '8.6.9'
-	fileLength = 10000896
+	version = '8.6.10'
+	fileLength = 10144235
 	checksums = {
 		'sha256':
-			'ad0cd2de2c87b9ba8086b43957a0de3eb2eb565c7159d5f53ccbba3feb915f4e',
+			'5196dbf6638e3df8d5c87b5815c8c2b758496eb6f0e41446596c9a4e638d87ed',
 		}
 
 	@classmethod

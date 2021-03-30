@@ -15,6 +15,7 @@
 #include "stl.hh"
 #include "unreachable.hh"
 #include "view.hh"
+#include "xrange.hh"
 #include <cassert>
 #include <cstring>
 #include <iterator> // for back_inserter
@@ -77,19 +78,18 @@ MSXMotherBoard& MSXDevice::getMotherBoard() const
 	return getHardwareConfig().getMotherBoard();
 }
 
-void MSXDevice::testRemove(Devices removed) const
+void MSXDevice::testRemove(span<const std::unique_ptr<MSXDevice>> removed) const
 {
-	auto all = referencedBy;
-	ranges::sort(all);
-	ranges::sort(removed);
-	Devices rest;
-	ranges::set_difference(all, removed, back_inserter(rest));
-	if (!rest.empty()) {
-		string msg = "Still in use by";
-		for (auto& d : rest) {
-			strAppend(msg, ' ', d->getName());
+	// Typically 'referencedBy' contains very few elements, so a simple
+	// O(n*m) algorithm is fine.
+	std::string err;
+	for (const auto* dev : referencedBy) {
+		if (ranges::none_of(removed, [&](const auto& d) { return d.get() == dev; })) {
+			strAppend(err, ' ', dev->getName());
 		}
-		throw MSXException(std::move(msg));
+	}
+	if (!err.empty()) {
+		throw MSXException("Still in use by:", err);
 	}
 }
 
@@ -267,7 +267,7 @@ void MSXDevice::registerSlots()
 	primaryConfig->setAttribute("slot", strCat(ps));
 	if (secondaryConfig) {
 		string slot = (ss == -1) ? "X" : strCat(ss);
-		secondaryConfig->setAttribute("slot", slot);
+		secondaryConfig->setAttribute("slot", std::move(slot));
 	} else {
 		if (ss != -1) {
 			throw MSXException(
@@ -334,7 +334,7 @@ void MSXDevice::registerPorts()
 		    (type != one_of("I", "O", "IO"))) {
 			throw MSXException("Invalid IO port specification");
 		}
-		for (unsigned port = base; port < base + num; ++port) {
+		for (auto port : xrange(base, base + num)) {
 			if (type == one_of("I", "IO")) {
 				getCPUInterface().register_IO_In(port, this);
 				inPorts.push_back(port);

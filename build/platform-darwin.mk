@@ -9,9 +9,8 @@ USE_SYMLINK:=true
 # replace this with its own low-res icon.
 SET_WINDOW_ICON:=false
 
-# Compile for the selected CPU.
-ifeq ($(OPENMSX_TARGET_CPU),x86)
-TARGET_FLAGS+=-arch i386
+ifeq ($(OPENMSX_TARGET_CPU),aarch64)
+TARGET_FLAGS+=-arch arm64
 else
 TARGET_FLAGS+=-arch $(OPENMSX_TARGET_CPU)
 endif
@@ -33,7 +32,13 @@ TARGET_FLAGS+=-mmacosx-version-min=$(OSX_VER)
 CXX:=clang++
 TARGET_FLAGS+=-stdlib=libc++
 
-# Link against CoreMIDI.
-LINK_FLAGS+=-framework CoreMIDI -framework CoreFoundation -framework CoreServices -framework ApplicationServices
+# Enable automatic reference counting in Objective-C
+ifneq ($(3RDPARTY_FLAG),true)
+TARGET_FLAGS+=-fobjc-arc
+endif
 
-
+# Link against system frameworks.
+LINK_FLAGS+= \
+	-framework CoreFoundation -framework CoreServices \
+	-framework ApplicationServices -framework CoreMIDI \
+	-framework Foundation

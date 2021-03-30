@@ -52,7 +52,7 @@ private:
 
 
 // generic implementation
-template <typename SOURCE> class IntHelper : public SOURCE
+template<typename SOURCE> class IntHelper : public SOURCE
 {
 public:
 	IntHelper(const IntHelper&) = delete;
@@ -113,7 +113,7 @@ public:
 	/** Get the interrupt state.
 	  * @return true iff interrupt request is active.
 	  */
-	inline bool getState() const {
+	[[nodiscard]] inline bool getState() const {
 		return request;
 	}
 
@@ -122,7 +122,7 @@ public:
 	{
 		bool pending = request;
 		ar.serialize("pending", pending);
-		if (ar.isLoader()) {
+		if constexpr (Archive::IS_LOADER) {
 			set(pending);
 		}
 	}

@@ -28,7 +28,7 @@ void HDCommand::execute(span<const TclObject> tokens, TclObject& result,
                         EmuTime::param /*time*/)
 {
 	if (tokens.size() == 1) {
-		result.addListElement(hd.getName() + ':',
+		result.addListElement(tmpStrCat(hd.getName(), ':'),
 		                      hd.getImageName().getResolved());
 
 		if (hd.isWriteProtected()) {
@@ -52,7 +52,7 @@ void HDCommand::execute(span<const TclObject> tokens, TclObject& result,
 			}
 		}
 		try {
-			Filename filename(string(tokens[fileToken].getString()),
+			Filename filename(tokens[fileToken].getString(),
 			                  userFileContext());
 			hd.switchImage(filename);
 			// Note: the diskX command doesn't do this either,
@@ -74,11 +74,11 @@ string HDCommand::help(const vector<string>& /*tokens*/) const
 
 void HDCommand::tabCompletion(vector<string>& tokens) const
 {
-	vector<const char*> extra;
-	if (tokens.size() < 3) {
-		extra = { "insert" };
-	}
-	completeFileName(tokens, userFileContext(), extra);
+	using namespace std::literals;
+	static constexpr std::array extra = {"insert"sv};
+	completeFileName(tokens, userFileContext(),
+		(tokens.size() < 3) ? extra : span<const std::string_view>{});
+
 }
 
 bool HDCommand::needRecord(span<const TclObject> tokens) const

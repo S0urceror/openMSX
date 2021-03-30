@@ -3,7 +3,6 @@
 #include "StateChangeDistributor.hh"
 #include "InputEvents.hh"
 #include "StateChange.hh"
-#include "Math.hh"
 #include "checked_cast.hh"
 #include "serialize.hh"
 #include "serialize_meta.hh"
@@ -32,10 +31,10 @@ public:
 		: StateChange(time_)
 		, deltaX(deltaX_), deltaY(deltaY_)
 		, press(press_), release(release_) {}
-	int  getDeltaX()  const { return deltaX; }
-	int  getDeltaY()  const { return deltaY; }
-	byte getPress()   const { return press; }
-	byte getRelease() const { return release; }
+	[[nodiscard]] int  getDeltaX()  const { return deltaX; }
+	[[nodiscard]] int  getDeltaY()  const { return deltaY; }
+	[[nodiscard]] byte getPress()   const { return press; }
+	[[nodiscard]] byte getRelease() const { return release; }
 
 	template<typename Archive> void serialize(Archive& ar, unsigned /*version*/)
 	{
@@ -74,10 +73,9 @@ Trackball::~Trackball()
 
 
 // Pluggable
-const string& Trackball::getName() const
+std::string_view Trackball::getName() const
 {
-	static const string name("trackball");
-	return name;
+	return "trackball";
 }
 
 std::string_view Trackball::getDescription() const
@@ -90,8 +88,10 @@ void Trackball::plugHelper(Connector& /*connector*/, EmuTime::param time)
 	eventDistributor.registerEventListener(*this);
 	stateChangeDistributor.registerListener(*this);
 	lastSync = time;
-	targetDeltaX = targetDeltaY = 0;
-	currentDeltaX = currentDeltaY = 0;
+	targetDeltaX = 0;
+	targetDeltaY = 0;
+	currentDeltaX = 0;
+	currentDeltaY = 0;
 }
 
 void Trackball::unplugHelper(EmuTime::param /*time*/)
@@ -135,10 +135,10 @@ void Trackball::write(byte value, EmuTime::param time)
 	if (diff & 0x4) {
 		// pin 8 flipped
 		if (value & 4) {
-			targetDeltaX = Math::clip<-8, 7>(targetDeltaX - currentDeltaX);
+			targetDeltaX = std::clamp(targetDeltaX - currentDeltaX, -8, 7);
 			currentDeltaX = 0;
 		} else {
-			targetDeltaY = Math::clip<-8, 7>(targetDeltaY - currentDeltaY);
+			targetDeltaY = std::clamp(targetDeltaY - currentDeltaY, -8, 7);
 			currentDeltaY = 0;
 		}
 	}
@@ -205,11 +205,11 @@ void Trackball::syncCurrentWithTarget(EmuTime::param time)
 
 // MSXEventListener
 void Trackball::signalMSXEvent(const shared_ptr<const Event>& event,
-                               EmuTime::param time)
+                               EmuTime::param time) noexcept
 {
 	switch (event->getType()) {
 	case OPENMSX_MOUSE_MOTION_EVENT: {
-		auto& mev = checked_cast<const MouseMotionEvent&>(*event);
+		const auto& mev = checked_cast<const MouseMotionEvent&>(*event);
 		constexpr int SCALE = 2;
 		int dx = mev.getX() / SCALE;
 		int dy = mev.getY() / SCALE;
@@ -219,7 +219,7 @@ void Trackball::signalMSXEvent(const shared_ptr<const Event>& event,
 		break;
 	}
 	case OPENMSX_MOUSE_BUTTON_DOWN_EVENT: {
-		auto& butEv = checked_cast<const MouseButtonEvent&>(*event);
+		const auto& butEv = checked_cast<const MouseButtonEvent&>(*event);
 		switch (butEv.getButton()) {
 		case MouseButtonEvent::LEFT:
 			createTrackballStateChange(time, 0, 0, JOY_BUTTONA, 0);
@@ -234,7 +234,7 @@ void Trackball::signalMSXEvent(const shared_ptr<const Event>& event,
 		break;
 	}
 	case OPENMSX_MOUSE_BUTTON_UP_EVENT: {
-		auto& butEv = checked_cast<const MouseButtonEvent&>(*event);
+		const auto& butEv = checked_cast<const MouseButtonEvent&>(*event);
 		switch (butEv.getButton()) {
 		case MouseButtonEvent::LEFT:
 			createTrackballStateChange(time, 0, 0, 0, JOY_BUTTONA);
@@ -264,15 +264,15 @@ void Trackball::createTrackballStateChange(
 // StateChangeListener
 void Trackball::signalStateChange(const shared_ptr<StateChange>& event)
 {
-	auto ts = dynamic_cast<TrackballState*>(event.get());
+	const auto* ts = dynamic_cast<const TrackballState*>(event.get());
 	if (!ts) return;
 
-	targetDeltaX = Math::clip<-8, 7>(targetDeltaX + ts->getDeltaX());
-	targetDeltaY = Math::clip<-8, 7>(targetDeltaY + ts->getDeltaY());
+	targetDeltaX = std::clamp(targetDeltaX + ts->getDeltaX(), -8, 7);
+	targetDeltaY = std::clamp(targetDeltaY + ts->getDeltaY(), -8, 7);
 	status = (status & ~ts->getPress()) | ts->getRelease();
 }
 
-void Trackball::stopReplay(EmuTime::param time)
+void Trackball::stopReplay(EmuTime::param time) noexcept
 {
 	syncCurrentWithTarget(time);
 	// TODO Get actual mouse button(s) state. Is it worth the trouble?
@@ -305,8 +305,10 @@ void Trackball::serialize(Archive& ar, unsigned version)
 	ar.serialize("lastValue", lastValue,
 	             "status",    status);
 
-	if (ar.isLoader() && isPluggedIn()) {
-		plugHelper(*getConnector(), EmuTime::dummy());
+	if constexpr (Archive::IS_LOADER) {
+		if (isPluggedIn()) {
+			plugHelper(*getConnector(), EmuTime::dummy());
+		}
 	}
 }
 INSTANTIATE_SERIALIZE_METHODS(Trackball);

@@ -3,7 +3,7 @@
 #include "InterpreterOutput.hh"
 #include "FileContext.hh"
 #include "FileOperations.hh"
-#include "ReadDir.hh"
+#include "foreach_file.hh"
 #include "ranges.hh"
 #include "stl.hh"
 #include "strCat.hh"
@@ -11,17 +11,13 @@
 #include "TclObject.hh"
 #include "utf8_unchecked.hh"
 #include "view.hh"
+#include "xrange.hh"
 
 using std::vector;
 using std::string;
 using std::string_view;
 
 namespace openmsx {
-
-Completer::Completer(string_view name)
-	: theName(std::string(name)) // TODO take std::string parameter instead and move()
-{
-}
 
 static bool formatHelper(const vector<string_view>& input, size_t columnLimit,
                          vector<string>& result)
@@ -46,7 +42,7 @@ static bool formatHelper(const vector<string_view>& input, size_t columnLimit,
 static vector<string> format(const vector<string_view>& input, size_t columnLimit)
 {
 	vector<string> result;
-	for (size_t lines = 1; lines < input.size(); ++lines) {
+	for (auto lines : xrange(1u, input.size())) {
 		result.assign(lines, string());
 		if (formatHelper(input, columnLimit, result)) {
 			return result;
@@ -138,8 +134,8 @@ void Completer::completeFileNameImpl(vector<string>& tokens,
                                      vector<string_view> matches)
 {
 	string& filename = tokens.back();
-	filename = FileOperations::expandTilde(filename);
-	filename = FileOperations::expandCurrentDirFromDrive(filename);
+	filename = FileOperations::expandTilde(std::move(filename));
+	filename = FileOperations::expandCurrentDirFromDrive(std::move(filename));
 	string_view dirname1 = FileOperations::getDirName(filename);
 
 	vector<string> paths;
@@ -151,21 +147,23 @@ void Completer::completeFileNameImpl(vector<string>& tokens,
 
 	vector<string> filenames;
 	for (auto& p : paths) {
-		string dirname = FileOperations::join(p, dirname1);
-		ReadDir dir(FileOperations::getNativePath(dirname));
-		while (dirent* de = dir.getEntry()) {
-			string name = FileOperations::join(dirname, de->d_name);
-			if (FileOperations::exists(name)) {
-				string nm = FileOperations::join(dirname1, de->d_name);
-				if (FileOperations::isDirectory(name)) {
-					nm += '/';
-				}
-				nm = FileOperations::getConventionalPath(nm);
-				if (equalHead(filename, nm, true)) {
-					filenames.push_back(nm);
-				}
+		auto pLen = p.size();
+		if (!p.empty() && (p.back() != '/')) ++pLen;
+		auto fileAction = [&](const string& path) {
+			const auto& nm = FileOperations::getConventionalPath(
+				path.substr(pLen));
+			if (equalHead(filename, nm, true)) {
+				filenames.push_back(nm);
 			}
-		}
+		};
+		auto dirAction = [&](string& path) {
+			path += '/';
+			fileAction(path);
+			path.pop_back();
+		};
+		foreach_file_and_directory(
+			FileOperations::join(p, dirname1),
+			fileAction, dirAction);
 	}
 	append(matches, filenames);
 	bool t = completeImpl(filename, matches, true);

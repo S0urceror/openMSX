@@ -25,6 +25,7 @@
 #include "utf8_checked.hh"
 #include "MSXException.hh"
 #include "StringOp.hh"
+#include "xrange.hh"
 #include <windows.h>
 #include <cstring>
 #include <cstdlib>
@@ -64,7 +65,7 @@ dirent* readdir(DIR* dir)
 {
 	static dirent entry;
 	entry.d_ino = 0;
-	entry.d_type = 0;
+	entry.d_type = DT_UNKNOWN;
 
 	auto find = static_cast<WIN32_FIND_DATAW*>(dir->data);
 	if (dir->filepos) {
@@ -104,7 +105,7 @@ void rewinddir(DIR* dir)
 void seekdir(DIR* dir, off_t offset)
 {
 	rewinddir(dir);
-	for (off_t n = 0; n < offset; ++n) {
+	for (auto n : xrange(offset)) {
 		if (FindNextFileW(reinterpret_cast<HANDLE>(dir->fd),
 		                  static_cast<WIN32_FIND_DATAW*>(dir->data))) {
 			dir->filepos++;

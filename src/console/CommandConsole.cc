@@ -10,14 +10,13 @@
 #include "CliComm.hh"
 #include "InputEvents.hh"
 #include "Display.hh"
+#include "VideoSystem.hh"
 #include "EventDistributor.hh"
-#include "SDL.h"
 #include "Version.hh"
 #include "checked_cast.hh"
 #include "utf8_unchecked.hh"
 #include "StringOp.hh"
 #include "ScopedAssign.hh"
-#include "scope_exit.hh"
 #include "view.hh"
 #include "xrange.hh"
 #include <algorithm>
@@ -64,38 +63,6 @@ string_view ConsoleLine::chunkText(size_t i) const
 	         ? string_view::npos
 	         : chunks[i + 1].second - pos;
 	return string_view(line).substr(pos, len);
-}
-
-ConsoleLine ConsoleLine::substr(size_t pos, size_t len) const
-{
-	ConsoleLine result;
-	if (chunks.empty()) {
-		assert(line.empty());
-		assert(pos == 0);
-		return result;
-	}
-
-	auto b = begin(line);
-	utf8::unchecked::advance(b, pos);
-	auto e = b;
-	while (len-- && (e != end(line))) {
-		utf8::unchecked::next(e);
-	}
-	result.line.assign(b, e);
-
-	unsigned bpos = b - begin(line);
-	unsigned bend = e - begin(line);
-	unsigned i = 1;
-	while ((i < chunks.size()) && (chunks[i].second <= bpos)) {
-		++i;
-	}
-	result.chunks.emplace_back(chunks[i - 1].first, 0);
-	while ((i < chunks.size()) && (chunks[i].second < bend)) {
-		result.chunks.emplace_back(chunks[i].first,
-		                           chunks[i].second - bpos);
-		++i;
-	}
-	return result;
 }
 
 // class CommandConsole
@@ -193,31 +160,18 @@ void CommandConsole::loadHistory()
 	}
 }
 
-void CommandConsole::getCursorPosition(unsigned& xPosition, unsigned& yPosition) const
+gl::ivec2 CommandConsole::getCursorPosition() const
 {
-	xPosition = cursorPosition % getColumns();
+	int xPosition = cursorPosition % getColumns();
 	auto num = lines[0].numChars() / getColumns();
-	yPosition = unsigned(num - (cursorPosition / getColumns()));
+	int yPosition = unsigned(num - (cursorPosition / getColumns()));
+	return {xPosition, yPosition};
 }
 
-ConsoleLine CommandConsole::getLine(unsigned line) const
-{
-	size_t count = 0;
-	for (auto buf : xrange(lines.size())) {
-		count += (lines[buf].numChars() / getColumns()) + 1;
-		if (count > line) {
-			return lines[buf].substr(
-				(count - line - 1) * getColumns(),
-				getColumns());
-		}
-	}
-	return ConsoleLine();
-}
-
-int CommandConsole::signalEvent(const std::shared_ptr<const Event>& event)
+int CommandConsole::signalEvent(const std::shared_ptr<const Event>& event) noexcept
 {
 	if (!consoleSetting.getBoolean()) return 0;
-	auto& keyEvent = checked_cast<const KeyEvent&>(*event);
+	const auto& keyEvent = checked_cast<const KeyEvent&>(*event);
 
 	// If the console is open then don't pass the event to the MSX
 	// (whetever the (keyboard) event is). If the event has a meaning for
@@ -286,8 +240,8 @@ bool CommandConsole::handleEvent(const KeyEvent& keyEvent)
 		}
 		break;
 	case Keys::KM_META:
-		switch (key) {
 #ifdef __APPLE__
+		switch (key) {
 		case Keys::K_V:
 			paste();
 			return true;
@@ -300,8 +254,8 @@ bool CommandConsole::handleEvent(const KeyEvent& keyEvent)
 		case Keys::K_RIGHT:
 			cursorPosition = unsigned(lines[0].numChars());
 			return true;
-#endif
 		}
+#endif
 		break;
 	case Keys::KM_ALT:
 		switch (key) {
@@ -476,7 +430,7 @@ void CommandConsole::commandExecute()
 	if (commandController.isComplete(commandBuffer)) {
 		// Normally the busy prompt is NOT shown (not even very briefly
 		// because the screen is not redrawn), though for some commands
-		// that potentially take a long time to execute, we explictly
+		// that potentially take a long time to execute, we explicitly
 		// send events, see also comment in signalEvent().
 		prompt = PROMPT_BUSY;
 		putPrompt();
@@ -517,16 +471,17 @@ ConsoleLine CommandConsole::highLight(string_view line)
 			++pos;
 		}
 		// TODO make these color configurable?
-		unsigned rgb;
-		switch (col) {
-		case 'E': rgb = 0xff0000; break; // error
-		case 'c': rgb = 0x5c5cff; break; // comment
-		case 'v': rgb = 0x00ffff; break; // variable
-		case 'l': rgb = 0xff00ff; break; // literal
-		case 'p': rgb = 0xcdcd00; break; // proc
-		case 'o': rgb = 0x00cdcd; break; // operator
-		default:  rgb = 0xffffff; break; // other
-		}
+		unsigned rgb = [&] {
+			switch (col) {
+			case 'E': return 0xff0000; // error
+			case 'c': return 0x5c5cff; // comment
+			case 'v': return 0x00ffff; // variable
+			case 'l': return 0xff00ff; // literal
+			case 'p': return 0xcdcd00; // proc
+			case 'o': return 0x00cdcd; // operator
+			default:  return 0xffffff; // other
+			}
+		}();
 		result.addChunk(line.substr(pos2, pos - pos2), rgb);
 	}
 	return result;
@@ -571,7 +526,7 @@ void CommandConsole::scroll(int delta)
 // returned for efficiency (this function calculates them anyway, and it's
 // likely the caller will need them as well).
 static std::tuple<std::string::const_iterator, std::string::const_iterator, unsigned>
-	getStartOfWord(const std::string& line, unsigned cursorPos, unsigned promptSize)
+	getStartOfWord(const std::string& line, unsigned cursorPos, size_t promptSize)
 {
 	auto begin  = std::begin(line);
 	auto prompt = begin + promptSize; // assumes prompt only contains single-byte utf8 chars
@@ -791,10 +746,8 @@ static std::vector<std::string_view> splitLines(std::string_view str)
 
 void CommandConsole::paste()
 {
-	char* text = SDL_GetClipboardText();
-	if (!text) return;
-	scope_exit e([&]{ SDL_free(text); });
-
+	auto text = display.getVideoSystem().getClipboardText();
+	if (text.empty()) return;
 	auto pastedLines = splitLines(text);
 	assert(!pastedLines.empty());
 
@@ -805,7 +758,7 @@ void CommandConsole::paste()
 		if (prefix.empty()) {
 			lines[0] = highLight(suffix);
 		} else {
-			lines[0] = highLight(strCat(prefix, suffix));
+			lines[0] = highLight(tmpStrCat(prefix, suffix));
 			prefix = "";
 		}
 	};

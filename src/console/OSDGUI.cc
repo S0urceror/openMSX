@@ -55,7 +55,7 @@ void OSDGUI::OSDCommand::create(span<const TclObject> tokens, TclObject& result)
 {
 	checkNumArgs(tokens, AtLeast{4}, Prefix{2}, "type name ?property value ...?");
 	string_view type = tokens[2].getString();
-	auto& fullname = tokens[3];
+	const auto& fullname = tokens[3];
 	auto fullnameStr = fullname.getString();
 
 	auto& gui = OUTER(OSDGUI, osdCommand);
@@ -74,12 +74,15 @@ void OSDGUI::OSDCommand::create(span<const TclObject> tokens, TclObject& result)
 	}
 
 	auto widget = create(type, fullname);
+	auto* widget2 = widget.get();
 	configure(*widget, tokens.subspan(4));
 	top.addName(*widget);
 	parent->addWidget(std::move(widget));
 
 	result = fullname;
-	gui.refresh();
+	if (widget2->isVisible()) {
+		gui.refresh();
+	}
 }
 
 unique_ptr<OSDWidget> OSDGUI::OSDCommand::create(
@@ -116,10 +119,12 @@ void OSDGUI::OSDCommand::destroy(span<const TclObject> tokens, TclObject& result
 		throw CommandException("Can't destroy the top widget.");
 	}
 
+	if (widget->isVisible()) {
+		gui.refresh();
+	}
 	top.removeName(*widget);
 	parent->deleteWidget(*widget);
 	result = true;
-	gui.refresh();
 }
 
 void OSDGUI::OSDCommand::info(span<const TclObject> tokens, TclObject& result)
@@ -158,9 +163,12 @@ void OSDGUI::OSDCommand::exists(span<const TclObject> tokens, TclObject& result)
 void OSDGUI::OSDCommand::configure(span<const TclObject> tokens, TclObject& /*result*/)
 {
 	checkNumArgs(tokens, AtLeast{3}, "name ?property value ...?");
-	configure(getWidget(tokens[2].getString()), tokens.subspan(3));
-	auto& gui = OUTER(OSDGUI, osdCommand);
-	gui.refresh();
+	auto& widget = getWidget(tokens[2].getString());
+	configure(widget, tokens.subspan(3));
+	if (widget.isVisible()) {
+		auto& gui = OUTER(OSDGUI, osdCommand);
+		gui.refresh();
+	}
 }
 
 void OSDGUI::OSDCommand::configure(OSDWidget& widget, span<const TclObject> tokens)
@@ -243,14 +251,15 @@ string OSDGUI::OSDCommand::help(const vector<string>& tokens) const
 
 void OSDGUI::OSDCommand::tabCompletion(vector<string>& tokens) const
 {
+	using namespace std::literals;
 	auto& gui = OUTER(OSDGUI, osdCommand);
 	if (tokens.size() == 2) {
-		static constexpr const char* const cmds[] = {
-			"create", "destroy", "info", "exists", "configure"
+		static constexpr std::array cmds = {
+			"create"sv, "destroy"sv, "info"sv, "exists"sv, "configure"sv
 		};
 		completeString(tokens, cmds);
 	} else if ((tokens.size() == 3) && (tokens[1] == "create")) {
-		static constexpr const char* const types[] = { "rectangle", "text" };
+		static constexpr std::array types = {"rectangle"sv, "text"sv};
 		completeString(tokens, types);
 	} else if ((tokens.size() == 3) ||
 	           ((tokens.size() == 4) && (tokens[1] == "create"))) {

@@ -155,23 +155,26 @@ void V9990PixelRenderer::renderUntil(EmuTime::param time)
 	int limitTicks = vdp.getUCTicksThisFrame(time);
 	assert(limitTicks <=
 	       V9990DisplayTiming::getUCTicksPerFrame(vdp.isPalTiming()));
-	int toX, toY;
-	switch (accuracy) {
-	case RenderSettings::ACC_PIXEL:
-		toX = limitTicks % V9990DisplayTiming::UC_TICKS_PER_LINE;
-		toY = limitTicks / V9990DisplayTiming::UC_TICKS_PER_LINE;
-		break;
-	case RenderSettings::ACC_LINE:
-	case RenderSettings::ACC_SCREEN:
-		// TODO figure out rounding point
-		toX = 0;
-		toY = (limitTicks + V9990DisplayTiming::UC_TICKS_PER_LINE - 400) /
-		             V9990DisplayTiming::UC_TICKS_PER_LINE;
-		break;
-	default:
-		UNREACHABLE;
-		toX = toY = 0; // avoid warning
-	}
+	auto [toX, toY] = [&] {
+		switch (accuracy) {
+		case RenderSettings::ACC_PIXEL:
+			return std::pair{
+				limitTicks % V9990DisplayTiming::UC_TICKS_PER_LINE,
+				limitTicks / V9990DisplayTiming::UC_TICKS_PER_LINE
+			};
+		case RenderSettings::ACC_LINE:
+		case RenderSettings::ACC_SCREEN:
+			// TODO figure out rounding point
+			return std::pair{
+				0,
+				(limitTicks + V9990DisplayTiming::UC_TICKS_PER_LINE - 400) /
+				     V9990DisplayTiming::UC_TICKS_PER_LINE
+			};
+		default:
+			UNREACHABLE;
+			return std::pair{0, 0}; // avoid warning
+		}
+	}();
 
 	if ((toX == lastX) && (toY == lastY)) return;
 
@@ -317,7 +320,7 @@ void V9990PixelRenderer::updateScrollBYLow(EmuTime::param time)
 	}
 }
 
-void V9990PixelRenderer::update(const Setting& setting)
+void V9990PixelRenderer::update(const Setting& setting) noexcept
 {
 	assert(&setting == one_of(&renderSettings.getMinFrameSkipSetting(),
 	                          &renderSettings.getMaxFrameSkipSetting()));

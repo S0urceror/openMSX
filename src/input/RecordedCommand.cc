@@ -48,7 +48,7 @@ bool RecordedCommand::needRecord(span<const TclObject> /*tokens*/) const
 	return true;
 }
 
-static std::string_view getBaseName(std::string_view str)
+[[nodiscard]] static std::string_view getBaseName(std::string_view str)
 {
 	auto pos = str.rfind("::");
 	return (pos == std::string_view::npos) ? str : str.substr(pos + 2);
@@ -59,7 +59,7 @@ void RecordedCommand::signalStateChange(const std::shared_ptr<StateChange>& even
 	auto* commandEvent = dynamic_cast<MSXCommandEvent*>(event.get());
 	if (!commandEvent) return;
 
-	auto& tokens = commandEvent->getTokens();
+	const auto& tokens = commandEvent->getTokens();
 	if (getBaseName(tokens[0].getString()) != getName()) return;
 
 	if (needRecord(tokens)) {
@@ -79,7 +79,7 @@ void RecordedCommand::signalStateChange(const std::shared_ptr<StateChange>& even
 	}
 }
 
-void RecordedCommand::stopReplay(EmuTime::param /*time*/)
+void RecordedCommand::stopReplay(EmuTime::param /*time*/) noexcept
 {
 	// nothing
 }
@@ -106,12 +106,12 @@ void MSXCommandEvent::serialize(Archive& ar, unsigned /*version*/)
 
 	// serialize vector<TclObject> as vector<string>
 	vector<string> str;
-	if (!ar.isLoader()) {
+	if constexpr (!Archive::IS_LOADER) {
 		str = to_vector(view::transform(
 			tokens, [](auto& t) { return string(t.getString()); }));
 	}
 	ar.serialize("tokens", str);
-	if (ar.isLoader()) {
+	if constexpr (Archive::IS_LOADER) {
 		assert(tokens.empty());
 		tokens = to_vector(view::transform(
 			str, [](auto& s) { return TclObject(s); }));

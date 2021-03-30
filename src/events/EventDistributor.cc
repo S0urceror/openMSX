@@ -71,6 +71,9 @@ bool EventDistributor::isRegistered(EventType type, EventListener* listener) con
 
 void EventDistributor::deliverEvents()
 {
+	static PriorityMap priorityMapCopy; // static to preserve capacity
+	static EventQueue eventsCopy;       // static to preserve capacity
+
 	assert(Thread::isMainThread());
 
 	reactor.getInputEventGenerator().poll();
@@ -86,14 +89,13 @@ void EventDistributor::deliverEvents()
 	// unsubscribe from the ols MSXEventDistributor. This really should be
 	// done before we exit this method.
 	while (!scheduledEvents.empty()) {
-		EventQueue eventsCopy;
+		assert(eventsCopy.empty());
 		swap(eventsCopy, scheduledEvents);
-
 		for (auto& event : eventsCopy) {
 			auto type = event->getType();
-			auto priorityMapCopy = listeners[type];
+			priorityMapCopy = listeners[type];
 			lock.unlock();
-			auto blockPriority = unsigned(-1); // allow all
+			int blockPriority = Priority::LOWEST; // allow all
 			for (const auto& [priority, listener] : priorityMapCopy) {
 				// It's possible delivery to one of the previous
 				// Listeners unregistered the current Listener.
@@ -101,13 +103,14 @@ void EventDistributor::deliverEvents()
 
 				if (priority >= blockPriority) break;
 
-				if (unsigned block = listener->signalEvent(event)) {
+				if (int block = listener->signalEvent(event)) {
 					assert(block > priority);
 					blockPriority = block;
 				}
 			}
 			lock.lock();
 		}
+		eventsCopy.clear();
 	}
 }
 

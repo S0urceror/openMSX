@@ -20,7 +20,7 @@
 
 namespace openmsx {
 
-static TurboRFDC::Type parseType(const DeviceConfig& config)
+[[nodiscard]] static TurboRFDC::Type parseType(const DeviceConfig& config)
 {
 	auto ioregs = config.getChildData("io_regs", {});
 	if (ioregs == "7FF2") {
@@ -208,7 +208,7 @@ void TurboRFDC::serialize(Archive& ar, unsigned /*version*/)
 	ar.template serializeBase<MSXFDC>(*this);
 	ar.serialize("TC8566AF", controller,
 	             "bank",     bank);
-	if (ar.isLoader()) {
+	if constexpr (Archive::IS_LOADER) {
 		setBank(bank);
 	}
 }

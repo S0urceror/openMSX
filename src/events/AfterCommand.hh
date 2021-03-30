@@ -25,14 +25,13 @@ public:
 	~AfterCommand();
 
 	void execute(span<const TclObject> tokens, TclObject& result) override;
-	std::string help(const std::vector<std::string>& tokens) const override;
+	[[nodiscard]] std::string help(const std::vector<std::string>& tokens) const override;
 	void tabCompletion(std::vector<std::string>& tokens) const override;
 
 private:
 	template<typename PRED> void executeMatches(PRED pred);
-	template<EventType T> void executeEvents();
-	template<EventType T> void afterEvent(
-	                   span<const TclObject> tokens, TclObject& result);
+	void executeSimpleEvents(EventType type);
+	void afterSimpleEvent(span<const TclObject> tokens, TclObject& result, EventType type);
 	void afterInputEvent(const EventPtr& event,
 	                   span<const TclObject> tokens, TclObject& result);
 	void afterTclTime (int ms,
@@ -44,8 +43,9 @@ private:
 	void afterCancel  (span<const TclObject> tokens, TclObject& result);
 
 	// EventListener
-	int signalEvent(const std::shared_ptr<const Event>& event) override;
+	int signalEvent(const std::shared_ptr<const Event>& event) noexcept override;
 
+private:
 	using AfterCmds = std::vector<std::unique_ptr<AfterCmd>>;
 	AfterCmds afterCmds;
 	Reactor& reactor;

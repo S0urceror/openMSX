@@ -18,6 +18,7 @@
 #include "checked_cast.hh"
 #include "serialize.hh"
 #include "serialize_meta.hh"
+#include "xrange.hh"
 #include <iostream>
 
 using std::shared_ptr;
@@ -33,10 +34,10 @@ public:
 	              byte x_, byte y_, bool touch_, bool button_)
 		: StateChange(time_)
 		, x(x_), y(y_), touch(touch_), button(button_) {}
-	byte getX()      const { return x; }
-	byte getY()      const { return y; }
-	bool getTouch()  const { return touch; }
-	bool getButton() const { return button; }
+	[[nodiscard]] byte getX()      const { return x; }
+	[[nodiscard]] byte getY()      const { return y; }
+	[[nodiscard]] bool getTouch()  const { return touch; }
+	[[nodiscard]] bool getButton() const { return button; }
 
 	template<typename Archive> void serialize(Archive& ar, unsigned /*version*/)
 	{
@@ -102,22 +103,21 @@ void Touchpad::parseTransformMatrix(Interpreter& interp, const TclObject& value)
 	if (value.getListLength(interp) != 2) {
 		throw CommandException("must have 2 rows");
 	}
-	for (int i = 0; i < 2; ++i) {
+	for (auto i : xrange(2)) {
 		TclObject row = value.getListIndex(interp, i);
 		if (row.getListLength(interp) != 3) {
 			throw CommandException("each row must have 3 elements");
 		}
-		for (int j = 0; j < 3; ++j) {
+		for (auto j : xrange(3)) {
 			m[j][i] = row.getListIndex(interp, j).getDouble(interp);
 		}
 	}
 }
 
 // Pluggable
-const std::string& Touchpad::getName() const
+std::string_view Touchpad::getName() const
 {
-	static const std::string name("touchpad");
-	return name;
+	return "touchpad";
 }
 
 std::string_view Touchpad::getDescription() const
@@ -203,18 +203,18 @@ ivec2 Touchpad::transformCoords(ivec2 xy)
 
 // MSXEventListener
 void Touchpad::signalMSXEvent(const shared_ptr<const Event>& event,
-                              EmuTime::param time)
+                              EmuTime::param time) noexcept
 {
 	ivec2 pos = hostPos;
 	int b = hostButtons;
 	switch (event->getType()) {
 	case OPENMSX_MOUSE_MOTION_EVENT: {
-		auto& mev = checked_cast<const MouseMotionEvent&>(*event);
+		const auto& mev = checked_cast<const MouseMotionEvent&>(*event);
 		pos = transformCoords(ivec2(mev.getAbsX(), mev.getAbsY()));
 		break;
 	}
 	case OPENMSX_MOUSE_BUTTON_DOWN_EVENT: {
-		auto& butEv = checked_cast<const MouseButtonEvent&>(*event);
+		const auto& butEv = checked_cast<const MouseButtonEvent&>(*event);
 		switch (butEv.getButton()) {
 		case MouseButtonEvent::LEFT:
 			b |= 1;
@@ -229,7 +229,7 @@ void Touchpad::signalMSXEvent(const shared_ptr<const Event>& event,
 		break;
 	}
 	case OPENMSX_MOUSE_BUTTON_UP_EVENT: {
-		auto& butEv = checked_cast<const MouseButtonEvent&>(*event);
+		const auto& butEv = checked_cast<const MouseButtonEvent&>(*event);
 		switch (butEv.getButton()) {
 		case MouseButtonEvent::LEFT:
 			b &= ~1;
@@ -275,7 +275,7 @@ void Touchpad::signalStateChange(const shared_ptr<StateChange>& event)
 	}
 }
 
-void Touchpad::stopReplay(EmuTime::param time)
+void Touchpad::stopReplay(EmuTime::param time) noexcept
 {
 	// TODO Get actual mouse state. Is it worth the trouble?
 	if (x || y || touch || button) {
@@ -300,8 +300,10 @@ void Touchpad::serialize(Archive& ar, unsigned /*version*/)
 	             "channel", channel,
 	             "last",    last);
 
-	if (ar.isLoader() && isPluggedIn()) {
-		plugHelper(*getConnector(), EmuTime::dummy());
+	if constexpr (Archive::IS_LOADER) {
+		if (isPluggedIn()) {
+			plugHelper(*getConnector(), EmuTime::dummy());
+		}
 	}
 }
 INSTANTIATE_SERIALIZE_METHODS(Touchpad);
