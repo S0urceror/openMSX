@@ -265,6 +265,8 @@ ssize_t CH376s::readDataMultiple (uint8_t* buffer,uint8_t len)
 {
     if (fp<0)
       return 0;
+
+    uint8_t* buffer_start = buffer;
     uint8_t cmd[] = {RD_DATA_MULTIPLE,len};
     write (fp,cmd,sizeof(cmd));
 
@@ -284,7 +286,7 @@ ssize_t CH376s::readDataMultiple (uint8_t* buffer,uint8_t len)
 
     std::clog << "readDataMultiple[" << unsigned (bytes_read) << "]: ";
     for (int i=0;i<bytes_read;i++) {
-      std::clog << (i==0?"":",") << "0x" << std::hex << std::setw(2) << std::setfill('0') << unsigned (buffer[i]);
+      std::clog << (i==0?"":",") << "0x" << std::hex << std::setw(2) << std::setfill('0') << unsigned (buffer_start[i]);
     }
     std::clog << std::endl;
 
